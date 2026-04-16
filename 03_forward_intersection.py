@@ -12,7 +12,7 @@
 
 import numpy as np
 
-from photogrammetry_common import OUTPUT_DIR, image_ray, read_csv, rotation_matrix, write_csv
+from common import OUTPUT_DIR, image_ray, read_csv, rotation_matrix, write_csv
 
 
 PARAM_FILE = OUTPUT_DIR / "02_relative_parameters.txt"

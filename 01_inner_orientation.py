@@ -11,7 +11,7 @@
     y = (主点 j - j) * 像元大小
 """
 
-from photogrammetry_common import (
+from common import (
     CONTROL_XLSX,
     OBJECT_XLSX,
     OUTPUT_DIR,

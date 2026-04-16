@@ -16,7 +16,7 @@ from pathlib import Path
 
 import numpy as np
 
-from photogrammetry_common import FOCAL_LENGTH_MM, OUTPUT_DIR, image_ray, read_csv, rotation_matrix
+from common import FOCAL_LENGTH, OUTPUT_DIR, image_ray, read_csv, rotation_matrix
 
 
 INPUT_CSV = OUTPUT_DIR / "01_relative_photo_coords.csv"
@@ -99,7 +99,7 @@ def solve_relative_orientation(points: list[dict]) -> tuple[np.ndarray, list[dic
 
 def write_iteration_log(path: Path, rows: list[dict]) -> None:
     """保存迭代过程。"""
-    from photogrammetry_common import write_csv
+    from common import write_csv
 
     write_csv(
         path,
@@ -126,7 +126,7 @@ def main() -> None:
         for name, value in zip(names, u):
             f.write(f"{name} = {value:.12f}\n")
         f.write(f"condition_rmse = {final_rmse:.12f}\n")
-        f.write(f"focal_length_mm = {FOCAL_LENGTH_MM:.6f}\n")
+        f.write(f"focal_length_mm = {FOCAL_LENGTH:.6f}\n")
 
     print("相对定向完成。")
     for name, value in zip(names, u):

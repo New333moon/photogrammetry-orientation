@@ -17,7 +17,7 @@
 
 import numpy as np
 
-from photogrammetry_common import OUTPUT_DIR, read_csv, write_csv
+from common import OUTPUT_DIR, read_csv, write_csv
 
 
 CONTROL_MODEL = OUTPUT_DIR / "03_control_model_points.csv"
