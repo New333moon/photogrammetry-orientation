@@ -12,7 +12,7 @@
 
 import numpy as np
 
-from common import OUTPUT_DIR, image_ray, read_csv, rotation_matrix, write_csv
+from tools import OUTPUT_DIR, image_ray, read_csv, rotation_matrix, write_csv
 
 
 PARAM_FILE = OUTPUT_DIR / "02_relative_parameters.txt"

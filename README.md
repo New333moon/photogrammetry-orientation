@@ -7,7 +7,7 @@
 3. `03_forward_intersection.py`：前方交会，计算模型坐标。
 4. `04_absolute_orientation.py`：绝对定向，把模型坐标转为地面坐标。
 
-相机参数没有从 `inputs/camera` 读取，而是固定写在 `photogrammetry_common.py` 开头。
+相机参数没有从 `inputs/camera` 读取，而是固定写在 `tools.py` 开头。
 
 ### 运行方法
 
@@ -29,9 +29,10 @@
 全部结果保存在 `outputs/` 文件夹，CSV 文件可以直接用 Excel 打开。
 
 ### 每一步输入输出对应关系
+
 01 内定向
-输入：inputs/*.xlsx
-输出：outputs/01_*_photo_coords.csv
+输入：inputs/\_.xlsx
+输出：outputs/01\_\_\_photo_coords.csv
 作用：i,j 像素坐标 → x,y 像片坐标
 
 02 相对定向
@@ -41,7 +42,7 @@
 
 03 前方交会
 输入：01 的像片坐标 + 02 的相对定向参数
-输出：outputs/03_*_model_points.csv
+输出：outputs/03\_\*\_model_points.csv
 作用：左右光线交会 → 模型坐标
 
 04 绝对定向
