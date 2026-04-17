@@ -1,45 +1,22 @@
 """
 04 绝对定向
-
-作用：
-用像控点把模型坐标转换为地面坐标。
-
-采用 7 参数相似变换：
-    Ground = T + scale * R * Model
-
-其中：
-    T 是三个平移参数
-    scale 是尺度
-    R 是三维旋转矩阵
-
-为了让代码不过分复杂，这里使用常见的 SVD 方法直接求相似变换。
+通过7参数相似变换，求出尺度、旋转和平移参数，利用像控点把模型坐标转换为地面坐标
 """
 
 import numpy as np
-
 from tools import OUTPUT_DIR, read_csv, write_csv
 
-
+# 输入
 CONTROL_MODEL = OUTPUT_DIR / "03_control_model_points.csv"
 OBJECT_MODEL = OUTPUT_DIR / "03_object_model_points.csv"
+
+# 输出
 PARAM_OUTPUT = OUTPUT_DIR / "04_absolute_parameters.txt"
 CONTROL_RESIDUAL_OUTPUT = OUTPUT_DIR / "04_control_residuals.csv"
 OBJECT_GROUND_OUTPUT = OUTPUT_DIR / "04_object_ground_points.csv"
 
-
-def solve_similarity(model_points: np.ndarray, ground_points: np.ndarray) -> tuple[float, np.ndarray, np.ndarray]:
-    """
-    求三维相似变换参数。
-
-    输入：
-        model_points: n x 3 模型坐标
-        ground_points: n x 3 地面坐标
-
-    输出：
-        scale: 尺度
-        rotation: 3 x 3 旋转矩阵
-        translation: 3 个平移量
-    """
+# 求相似变换参数
+def solve_similarity(model_points, ground_points):
     model_mean = model_points.mean(axis=0)
     ground_mean = ground_points.mean(axis=0)
 
@@ -63,31 +40,30 @@ def solve_similarity(model_points: np.ndarray, ground_points: np.ndarray) -> tup
 
     return scale, rotation, translation
 
-
-def transform_points(points: np.ndarray, scale: float, rotation: np.ndarray, translation: np.ndarray) -> np.ndarray:
-    """把模型点批量转换到地面坐标。"""
+# 把模型点转换到地面坐标
+def transform_points(points, scale, rotation, translation):
     return translation + scale * (rotation @ points.T).T
 
 
-def main() -> None:
+def main():
     if not CONTROL_MODEL.exists() or not OBJECT_MODEL.exists():
         raise FileNotFoundError("请先运行 03_forward_intersection.py")
 
     control_rows = read_csv(CONTROL_MODEL)
     object_rows = read_csv(OBJECT_MODEL)
 
+    # 整理像控点的模型坐标和地面坐标
     model_control = np.array(
-        [[float(p["model_x"]), float(p["model_y"]), float(p["model_z"])] for p in control_rows],
-        dtype=float,
+        [[float(p["model_x"]), float(p["model_y"]), float(p["model_z"])] for p in control_rows]
     )
     ground_control = np.array(
-        [[float(p["ground_x"]), float(p["ground_y"]), float(p["ground_z"])] for p in control_rows],
-        dtype=float,
+        [[float(p["ground_x"]), float(p["ground_y"]), float(p["ground_z"])] for p in control_rows]
     )
 
+    # 计算绝对定向参数
     scale, rotation, translation = solve_similarity(model_control, ground_control)
 
-    # 检查像控点残差，报告里通常要写。
+    # 像控点残差
     fitted_control = transform_points(model_control, scale, rotation, translation)
     residuals = fitted_control - ground_control
     rmse_xyz = np.sqrt(np.mean(residuals**2, axis=0))
@@ -114,10 +90,9 @@ def main() -> None:
         ["id", "number", "fit_x", "fit_y", "fit_z", "vx", "vy", "vz"],
     )
 
-    # 转换待成图地物点。
+    # 把地物点从模型坐标转换到地面坐标
     model_object = np.array(
-        [[float(p["model_x"]), float(p["model_y"]), float(p["model_z"])] for p in object_rows],
-        dtype=float,
+        [[float(p["model_x"]), float(p["model_y"]), float(p["model_z"])] for p in object_rows]
     )
     ground_object = transform_points(model_object, scale, rotation, translation)
 
@@ -131,6 +106,7 @@ def main() -> None:
                 "ground_x": ground[0],
                 "ground_y": ground[1],
                 "ground_z": ground[2],
+                "Q": row["Q"],
                 "ray_gap": row["ray_gap"],
             }
         )
@@ -138,30 +114,28 @@ def main() -> None:
     write_csv(
         OBJECT_GROUND_OUTPUT,
         object_output_rows,
-        ["id", "object", "number", "ground_x", "ground_y", "ground_z", "ray_gap"],
+        ["id", "object", "number", "ground_x", "ground_y", "ground_z", "Q", "ray_gap"],
     )
 
     with PARAM_OUTPUT.open("w", encoding="utf-8") as f:
-        f.write("# 绝对定向 7 参数相似变换\n")
-        f.write("公式：Ground = T + scale * R * Model\n")
-        f.write(f"scale = {scale:.12f}\n")
+        f.write("# 绝对定向参数:\n")
+        f.write(f"尺度： {scale:.12f}\n\n")
+        f.write("平移：:\n")
         f.write(f"tx = {translation[0]:.12f}\n")
         f.write(f"ty = {translation[1]:.12f}\n")
-        f.write(f"tz = {translation[2]:.12f}\n")
-        f.write("rotation_matrix =\n")
+        f.write(f"tz = {translation[2]:.12f}\n\n")
+        
+        f.write("旋转矩阵：\n")
         for row in rotation:
             f.write("  " + " ".join(f"{v:.12f}" for v in row) + "\n")
-        f.write(f"rmse_x = {rmse_xyz[0]:.6f}\n")
+        
+        f.write(f"\nrmse_x = {rmse_xyz[0]:.6f}\n")
         f.write(f"rmse_y = {rmse_xyz[1]:.6f}\n")
-        f.write(f"rmse_z = {rmse_xyz[2]:.6f}\n")
+        f.write(f"rmse_z = {rmse_xyz[2]:.6f}\n\n")
         f.write(f"rmse_total = {rmse_total:.6f}\n")
 
-    print("绝对定向完成。")
-    print(f"尺度 scale = {scale:.6f}")
-    print(f"控制点 RMSE: X={rmse_xyz[0]:.4f}, Y={rmse_xyz[1]:.4f}, Z={rmse_xyz[2]:.4f}, total={rmse_total:.4f}")
-    print(f"绝对定向参数：{PARAM_OUTPUT}")
-    print(f"控制点残差：{CONTROL_RESIDUAL_OUTPUT}")
-    print(f"地物点地面坐标：{OBJECT_GROUND_OUTPUT}")
+    print("绝对定向完成")
+    print("控制点总 RMSE =", rmse_total)
 
 
 if __name__ == "__main__":

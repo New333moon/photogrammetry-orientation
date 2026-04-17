@@ -6,8 +6,10 @@
 import numpy as np
 from tools import OUTPUT_DIR, image_ray, read_csv, rotation_matrix, write_csv
 
-
+# 输入
 INPUT_CSV = OUTPUT_DIR / "01_relative_photo_coords.csv"
+
+# 输出
 OUTPUT_PARAM = OUTPUT_DIR / "02_relative_parameters.txt"
 OUTPUT_LOG = OUTPUT_DIR / "02_relative_iteration_log.csv"
 
@@ -114,10 +116,8 @@ def main():
     for name, value in zip(names, u):
         print(name, "=", value)
     print("RMSE =", final_rmse)
-    print("参数文件已保存")
-    for p, v in zip(points, final_f):
-        print(p["id"], v)
-    print("迭代日志已保存")
+    #for p, v in zip(points, final_f):
+        #print(p["id"], v)
 
 
 if __name__ == "__main__":

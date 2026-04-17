@@ -3,15 +3,7 @@
 把左右片像素坐标转换为像片坐标，保存为CSV文件。
 """
 
-from tools import (
-    OUTPUT_DIR,
-    ensure_output_dir,
-    pixel_to_photo,
-    read_control_excel,
-    read_object_excel,
-    read_relative_excel,
-    write_csv,
-)
+from tools import OUTPUT_DIR, ensure_output_dir, pixel_to_photo, read_control_excel, read_object_excel, read_relative_excel, write_csv
 
 # 给每个点增加左右片像片坐标
 def add_photo_coordinates(points):
@@ -63,7 +55,6 @@ def main():
     print("相对定向点数:", len(relative_points))
     print("像控点数:", len(control_points))
     print("地物点数:", len(object_points))
-    print("结果保存在outputs文件夹")
 
 
 if __name__ == "__main__":
