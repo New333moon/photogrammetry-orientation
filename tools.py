@@ -15,6 +15,14 @@ PHOTO_CENTER_J = 12863.5
 LEFT_PHOTO_NAME = "589" # 左右片编号，只用于输出说明
 RIGHT_PHOTO_NAME = "590"
 
+# 数字内定向元素：
+H0 = -PHOTO_CENTER_I * PIXEL_SIZE
+H1 = PIXEL_SIZE
+H2 = 0.0
+K0 = PHOTO_CENTER_J * PIXEL_SIZE
+K1 = 0.0
+K2 = -PIXEL_SIZE
+
 
 # 固定输入输出路径：
 ROOT = Path(__file__).resolve().parent

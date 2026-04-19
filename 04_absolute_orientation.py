@@ -1,10 +1,10 @@
 """
 04 绝对定向
-通过7参数相似变换，求出尺度、旋转和平移参数，利用像控点把模型坐标转换为地面坐标
+利用像控点进行7参数相似变换，通过迭代方法求解尺度、旋转和平移参数，再把模型坐标转换为地面坐标。
 """
 
 import numpy as np
-from tools import OUTPUT_DIR, read_csv, write_csv
+from tools import OUTPUT_DIR, read_csv, rotation_matrix, write_csv
 
 # 输入
 CONTROL_MODEL = OUTPUT_DIR / "03_control_model_points.csv"
@@ -15,34 +15,97 @@ PARAM_OUTPUT = OUTPUT_DIR / "04_absolute_parameters.txt"
 CONTROL_RESIDUAL_OUTPUT = OUTPUT_DIR / "04_control_residuals.csv"
 OBJECT_GROUND_OUTPUT = OUTPUT_DIR / "04_object_ground_points.csv"
 
-# 求相似变换参数
+def apply_similarity(points, tx, ty, tz, scale, omega, phi, kappa):
+    rotation = rotation_matrix(omega, phi, kappa)
+    transformed = scale * (rotation @ points.T).T
+    transformed[:, 0] += tx
+    transformed[:, 1] += ty
+    transformed[:, 2] += tz
+    return transformed
+
+
+def numerical_jacobian(model_points, tx, ty, tz, scale, omega, phi, kappa):
+    base = apply_similarity(model_points, tx, ty, tz, scale, omega, phi, kappa).reshape(-1)
+    params = np.array([tx, ty, tz, scale, omega, phi, kappa], dtype=float)
+    jacobian = np.zeros((base.size, 7))
+    step = 1e-6
+
+    for i in range(7):
+        params_plus = params.copy()
+        params_minus = params.copy()
+        params_plus[i] += step
+        params_minus[i] -= step
+
+        plus = apply_similarity(
+            model_points,
+            params_plus[0],
+            params_plus[1],
+            params_plus[2],
+            params_plus[3],
+            params_plus[4],
+            params_plus[5],
+            params_plus[6],
+        ).reshape(-1)
+        minus = apply_similarity(
+            model_points,
+            params_minus[0],
+            params_minus[1],
+            params_minus[2],
+            params_minus[3],
+            params_minus[4],
+            params_minus[5],
+            params_minus[6],
+        ).reshape(-1)
+
+        jacobian[:, i] = (plus - minus) / (2 * step)
+
+    return jacobian
+
+# 用迭代方法求三维相似变换参数
 def solve_similarity(model_points, ground_points):
     model_mean = model_points.mean(axis=0)
     ground_mean = ground_points.mean(axis=0)
 
-    model_centered = model_points - model_mean
-    ground_centered = ground_points - ground_mean
+    tx = ground_mean[0] - model_mean[0]
+    ty = ground_mean[1] - model_mean[1]
+    tz = ground_mean[2] - model_mean[2]
 
-    # 协方差矩阵。它反映模型坐标和地面坐标之间的整体转向关系。
-    covariance = model_centered.T @ ground_centered / len(model_points)
-    u, singular_values, vt = np.linalg.svd(covariance)
+    model_dist = np.mean(np.linalg.norm(model_points - model_mean, axis=1))
+    ground_dist = np.mean(np.linalg.norm(ground_points - ground_mean, axis=1))
+    scale = ground_dist / model_dist if model_dist > 0 else 1.0
 
-    rotation = vt.T @ u.T
+    omega = 0.0
+    phi = 0.0
+    kappa = 0.0
 
-    # 如果行列式小于 0，说明出现了镜像，需要修正。
-    if np.linalg.det(rotation) < 0:
-        vt[-1, :] *= -1
-        rotation = vt.T @ u.T
+    for _ in range(50):
+        fitted = apply_similarity(model_points, tx, ty, tz, scale, omega, phi, kappa)
+        residual = (ground_points - fitted).reshape(-1)
+        jacobian = numerical_jacobian(model_points, tx, ty, tz, scale, omega, phi, kappa)
 
-    model_var = np.mean(np.sum(model_centered**2, axis=1))
-    scale = float(np.sum(singular_values) / model_var)
-    translation = ground_mean - scale * (rotation @ model_mean)
+        delta, *_ = np.linalg.lstsq(jacobian, residual, rcond=None)
 
+        tx += delta[0]
+        ty += delta[1]
+        tz += delta[2]
+        scale += delta[3]
+        omega += delta[4]
+        phi += delta[5]
+        kappa += delta[6]
+
+        limit_translation = np.max(np.abs(delta[:3]))
+        limit_scale_angle = np.max(np.abs(delta[3:]))
+        if limit_translation < 0.1 and limit_scale_angle < 1e-6:
+            break
+
+    rotation = rotation_matrix(omega, phi, kappa)
+    translation = np.array([tx, ty, tz], dtype=float)
     return scale, rotation, translation
 
 # 把模型点转换到地面坐标
 def transform_points(points, scale, rotation, translation):
-    return translation + scale * (rotation @ points.T).T
+    transformed = scale * (rotation @ points.T).T
+    return transformed + translation
 
 
 def main():
@@ -119,13 +182,13 @@ def main():
 
     with PARAM_OUTPUT.open("w", encoding="utf-8") as f:
         f.write("# 绝对定向参数:\n")
-        f.write(f"尺度： {scale:.12f}\n\n")
-        f.write("平移：:\n")
+        f.write(f"lambda = {scale:.12f}\n")
+
         f.write(f"tx = {translation[0]:.12f}\n")
         f.write(f"ty = {translation[1]:.12f}\n")
-        f.write(f"tz = {translation[2]:.12f}\n\n")
+        f.write(f"tz = {translation[2]:.12f}\n")
         
-        f.write("旋转矩阵：\n")
+        f.write("旋转矩阵 =\n")
         for row in rotation:
             f.write("  " + " ".join(f"{v:.12f}" for v in row) + "\n")
         
